@@ -30,17 +30,21 @@ A skill-based agent runtime, MIT-friendly (Apache 2.0), designed to:
 | Skill | Status | What it does |
 |---|---|---|
 | [`dsar`](./skills/dsar/) | v0.1 working | Intake, search, redact, and respond to UK GDPR Article 15 requests |
-| [`foi`](./skills/foi/) | scaffold | Freedom of Information Act request handling (v0.2) |
+| [`foi`](./skills/foi/) | v0.1 working | Intake, s.12 fee check, search, and respond under FOIA 2000 |
 
 ## What a real audit trail looks like
 
-Here's the tail from a real DSAR round-trip run against the sample data — recorded as committed evidence in [`docs/sample-audit.jsonl`](./docs/sample-audit.jsonl):
+Here's the tail from real DSAR and FOI round-trips run against the sample data — recorded as committed evidence in [`docs/sample-audit.jsonl`](./docs/sample-audit.jsonl):
 
 ```
 2026-04-21T16:22:52Z  dsar  intake.parsed         ref=REQ-ccf78468
 2026-04-21T16:23:50Z  dsar  search.planned        ref=SUB-e6b05c15
 2026-04-21T16:24:38Z  dsar  response.drafted      ref=REQ001
 2026-04-21T16:24:39Z  core  oversight.approved    ref=REQ001
+2026-04-21T16:34:51Z  foi   intake.parsed         ref=FOI-2ea58015
+2026-04-21T16:34:58Z  foi   fee_limit.assessed    ref=FOI-2ea58015
+2026-04-21T16:35:43Z  foi   response.drafted      ref=FOI-2026-001
+2026-04-21T16:35:43Z  core  oversight.approved    ref=FOI-2026-001
 ```
 
 Every row is SHA-256 hash-chained to the previous. The chain verifies with `civiclaw audit verify`. Edit or delete any entry and the verification fails at the tampered row — that's the primitive EU AI Act Article 12 wants and nobody else ships.

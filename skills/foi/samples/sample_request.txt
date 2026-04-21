@@ -1,0 +1,22 @@
+From: journalist@pressgazette.example
+To: foi@[council].gov.uk
+Date: 2 April 2026
+Subject: Freedom of Information request — consultancy spend on digital transformation
+
+Dear Information Governance Team,
+
+Under the Freedom of Information Act 2000 please provide the following for the 2024/25 financial year:
+
+(a) The total amount paid to external consultancy firms for advice on digital transformation, cloud migration, AI strategy or similar digital programmes, broken down by supplier name and total annual spend.
+
+(b) Copies of any business cases, Cabinet papers or equivalent governance documents approving spend over £50,000 in this category during the same period, including any redacted versions already in the public domain.
+
+(c) The job titles of the council officers who authorised each payment over £50,000, including the authorising level (e.g. Head of Service, Director, Chief Officer).
+
+Please provide the information in electronic form (CSV or PDF as appropriate).
+
+I would also be grateful if the response could indicate any information withheld under an exemption and the relevant section of the Act, including the public-interest reasoning for any qualified exemption applied.
+
+Kind regards,
+Investigations Desk
+Press Gazette
