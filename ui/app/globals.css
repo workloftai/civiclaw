@@ -1,0 +1,47 @@
+:root {
+  --bg: #0b0c10;
+  --panel: #14161c;
+  --panel-2: #1b1e26;
+  --border: #262a34;
+  --text: #e6e8ef;
+  --muted: #8b91a3;
+  --accent: #7c3aed;
+  --accent-2: #f59e0b;
+  --ok: #22c55e;
+  --warn: #f59e0b;
+  --err: #ef4444;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+code, pre, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.container { max-width: 960px; margin: 0 auto; padding: 32px 24px; }
+h1 { font-size: 20px; font-weight: 600; margin: 0 0 4px; }
+h2 { font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 32px 0 12px; }
+.subtle { color: var(--muted); font-size: 13px; }
+
+.panel { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+.row { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 8px; }
+.row + .row { margin-top: 6px; }
+.row:hover { background: var(--panel-2); }
+.row .evt { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; }
+.row .ts { color: var(--muted); font-size: 12px; min-width: 180px; }
+.row .ref { color: var(--accent-2); font-size: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; }
+.tag.dsar { background: rgba(124,58,237,0.15); color: var(--accent); }
+.tag.foi { background: rgba(245,158,11,0.15); color: var(--accent-2); }
+.tag.core { background: rgba(34,197,94,0.15); color: var(--ok); }
+.tag.pending { background: rgba(245,158,11,0.15); color: var(--warn); }
+.tag.ok { background: rgba(34,197,94,0.15); color: var(--ok); }
+.tag.err { background: rgba(239,68,68,0.15); color: var(--err); }
+
+button { background: var(--accent); color: #fff; border: 0; padding: 6px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+button:hover { filter: brightness(1.1); }
+button.secondary { background: transparent; border: 1px solid var(--border); color: var(--text); }
+
+.bar { display: flex; gap: 8px; align-items: center; margin-bottom: 16px; }
+.verify { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+.verify.ok { background: rgba(34,197,94,0.15); color: var(--ok); }
+.verify.err { background: rgba(239,68,68,0.15); color: var(--err); }

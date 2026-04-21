@@ -16,6 +16,7 @@ Requires ANTHROPIC_API_KEY in the environment.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -28,7 +29,27 @@ import instructor
 from pydantic import BaseModel, Field
 from typing import Optional
 
+# Wire to civiclaw runtime. Skill lives at skills/dsar/skill.py; repo root is two up.
+_REPO_ROOT = Path(__file__).resolve().parent.parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
+from core.audit import AuditLog  # noqa: E402
+
 from config import DATA_SOURCES, MODEL, MAX_TOKENS, SAMPLE_REQUESTS
+
+# Audit log lives under .audit/ at the repo root so it's gitignored by default.
+AUDIT_PATH = _REPO_ROOT / ".audit" / "civiclaw.jsonl"
+_audit = AuditLog(AUDIT_PATH)
+ACTOR = os.environ.get("CIVICLAW_ACTOR", "anonymous")
+
+
+def _actor() -> str:
+    return ACTOR
+
+
+def _hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 # ---------------------------------------------------------------------------
@@ -167,6 +188,7 @@ INTAKE_SYSTEM = textwrap.dedent("""\
 def cmd_intake(args: argparse.Namespace) -> None:
     """Parse a DSAR request and extract key information."""
     request_text = _read_text(args.request_text)
+    ref = getattr(args, 'request_id', None) or f"REQ-{_hash(request_text)[:8]}"
     print("Analysing DSAR request...")
 
     if getattr(args, 'json_output', False):
@@ -177,9 +199,16 @@ def cmd_intake(args: argparse.Namespace) -> None:
         )
         import json as json_mod
         print(json_mod.dumps(result.model_dump(), indent=2))
+        data = result.model_dump()
     else:
-        result = _call(INTAKE_SYSTEM, f"Parse the following DSAR request:\n\n{request_text}")
-        _print_section("DSAR INTAKE ANALYSIS", result)
+        result_text = _call(INTAKE_SYSTEM, f"Parse the following DSAR request:\n\n{request_text}")
+        _print_section("DSAR INTAKE ANALYSIS", result_text)
+        data = {"summary_chars": len(result_text), "source_hash": _hash(request_text)}
+
+    _audit.append(
+        actor=_actor(), skill="dsar", event="intake.parsed", ref=ref,
+        data={"source_length": len(request_text), **data},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +255,10 @@ def cmd_search(args: argparse.Namespace) -> None:
     print(f"Searching for data sources relating to: {subject}...")
     result = _call(SEARCH_SYSTEM, user_prompt)
     _print_section(f"DATA SOURCE SEARCH — {subject}", result)
+    _audit.append(
+        actor=_actor(), skill="dsar", event="search.planned", ref=f"SUB-{_hash(subject)[:8]}",
+        data={"subject": subject, "systems_considered": [s["id"] for s in DATA_SOURCES]},
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -297,6 +330,17 @@ def cmd_redact(args: argparse.Namespace) -> None:
     out_path = doc_path.with_stem(doc_path.stem + "_redacted")
     out_path.write_text(result, encoding="utf-8")
     print(f"Redacted document saved to: {out_path}")
+    _audit.append(
+        actor=_actor(), skill="dsar", event="redaction.applied",
+        ref=f"DOC-{_hash(str(doc_path))[:8]}",
+        data={
+            "document": doc_path.name,
+            "pre_hash": _hash(document_text),
+            "post_hash": _hash(result),
+            "subject": subject,
+            "requester": requester,
+        },
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -369,6 +413,19 @@ def cmd_respond(args: argparse.Namespace) -> None:
     print(f"Drafting response for request: {req_id}...")
     result = _call(RESPOND_SYSTEM, user_prompt)
     _print_section(f"DSAR RESPONSE LETTER — {req_id}", result)
+    _audit.append(
+        actor=_actor(), skill="dsar", event="response.drafted", ref=req_id,
+        data={
+            "word_count": len(result.split()),
+            "requires_human_signoff": True,
+            "draft_hash": _hash(result),
+        },
+    )
+    print(
+        "\n[civiclaw] Article 14 human-in-the-loop gate: "
+        "this draft MUST be reviewed and approved by a human before sending. "
+        "Run `civiclaw approve --ref " + req_id + "` to log the sign-off."
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,146 @@
+#!/usr/bin/env python3
+"""
+civiclaw — top-level CLI.
+
+Usage:
+  civiclaw list                    List installed skills.
+  civiclaw <skill> <command> ...   Invoke a skill command.
+  civiclaw audit verify            Verify the audit log chain.
+  civiclaw audit tail [N]          Show the last N audit entries.
+  civiclaw approve --ref <REF>     Record a human sign-off for a gated action.
+  civiclaw model                   Show which model backend would be used.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent
+sys.path.insert(0, str(REPO_ROOT))
+
+from core.audit import AuditLog  # noqa: E402
+from core.runtime import discover_skills  # noqa: E402
+
+
+AUDIT_PATH = REPO_ROOT / ".audit" / "civiclaw.jsonl"
+ACTOR = os.environ.get("CIVICLAW_ACTOR", "anonymous")
+
+
+def cmd_list() -> int:
+    skills = discover_skills(REPO_ROOT / "skills")
+    if not skills:
+        print("No skills found under ./skills/")
+        return 1
+    print(f"{'NAME':<12}{'VERSION':<18}SUMMARY")
+    for s in skills:
+        print(f"{s.name:<12}{s.version:<18}{s.summary}")
+    return 0
+
+
+def cmd_audit(rest: list[str]) -> int:
+    log = AuditLog(AUDIT_PATH)
+    if not rest or rest[0] == "verify":
+        ok, n, err = log.verify()
+        print(f"audit log: {AUDIT_PATH}")
+        print(f"entries: {n}")
+        print(f"verified: {ok}")
+        if err:
+            print(f"error: {err}")
+        return 0 if ok else 1
+    if rest[0] == "tail":
+        n = int(rest[1]) if len(rest) > 1 else 10
+        if not AUDIT_PATH.exists():
+            print("(audit log is empty)")
+            return 0
+        lines = AUDIT_PATH.read_text().splitlines()[-n:]
+        for line in lines:
+            try:
+                entry = json.loads(line)
+                print(f"{entry['ts']}  {entry['skill']:<8}  {entry['event']:<22}  ref={entry.get('ref','-')}")
+            except Exception:
+                print(line)
+        return 0
+    print(f"Unknown audit subcommand: {rest[0]}", file=sys.stderr)
+    return 2
+
+
+def cmd_approve(rest: list[str]) -> int:
+    """Log a human sign-off for a gated action — fulfils EU AI Act Art. 14."""
+    if "--ref" not in rest:
+        print("usage: civiclaw approve --ref <REF> [--note <text>]", file=sys.stderr)
+        return 2
+    ref = rest[rest.index("--ref") + 1]
+    note = None
+    if "--note" in rest:
+        note = rest[rest.index("--note") + 1]
+    log = AuditLog(AUDIT_PATH)
+    entry = log.append(
+        actor=ACTOR, skill="core", event="oversight.approved", ref=ref,
+        data={"approver": ACTOR, "note": note},
+    )
+    print(f"[civiclaw] approved ref={ref} by actor={ACTOR}  hash={entry['hash'][:12]}")
+    return 0
+
+
+def cmd_model() -> int:
+    from core import router
+
+    forced = os.environ.get("CIVICLAW_MODEL")
+    try:
+        backend = router._pick_backend(forced)
+        model = router.DEFAULT_MODELS[backend]["mid"]
+        print(f"backend: {backend}")
+        print(f"tier=mid model: {model}")
+        print(f"forced via CIVICLAW_MODEL: {'yes' if forced else 'no'}")
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}")
+        return 1
+    return 0
+
+
+def cmd_skill(skill_name: str, rest: list[str]) -> int:
+    skills = discover_skills(REPO_ROOT / "skills")
+    skill = next((s for s in skills if s.name == skill_name), None)
+    if not skill:
+        print(f"Unknown skill: {skill_name}. Try: civiclaw list", file=sys.stderr)
+        return 2
+    entry = skill.path / skill.entry
+    if not entry.exists():
+        print(f"Skill entry not found: {entry}", file=sys.stderr)
+        return 2
+    # Pass through to the skill's own CLI.
+    result = subprocess.run(
+        [sys.executable, str(entry), *rest],
+        cwd=str(skill.path),
+        env={**os.environ, "CIVICLAW_ACTOR": ACTOR},
+    )
+    return result.returncode
+
+
+def main() -> int:
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help", "help"):
+        print(__doc__)
+        return 0
+    cmd = sys.argv[1]
+    rest = sys.argv[2:]
+    if cmd == "list":
+        return cmd_list()
+    if cmd == "audit":
+        return cmd_audit(rest)
+    if cmd == "approve":
+        return cmd_approve(rest)
+    if cmd == "model":
+        return cmd_model()
+    # Otherwise treat as skill invocation.
+    if not rest:
+        print(f"usage: civiclaw {cmd} <command> [...]", file=sys.stderr)
+        return 2
+    return cmd_skill(cmd, rest)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

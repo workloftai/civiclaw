@@ -32,6 +32,19 @@ A skill-based agent runtime, MIT-friendly (Apache 2.0), designed to:
 | [`dsar`](./skills/dsar/) | v0.1 working | Intake, search, redact, and respond to UK GDPR Article 15 requests |
 | [`foi`](./skills/foi/) | scaffold | Freedom of Information Act request handling (v0.2) |
 
+## What a real audit trail looks like
+
+Here's the tail from a real DSAR round-trip run against the sample data — recorded as committed evidence in [`docs/sample-audit.jsonl`](./docs/sample-audit.jsonl):
+
+```
+2026-04-21T16:22:52Z  dsar  intake.parsed         ref=REQ-ccf78468
+2026-04-21T16:23:50Z  dsar  search.planned        ref=SUB-e6b05c15
+2026-04-21T16:24:38Z  dsar  response.drafted      ref=REQ001
+2026-04-21T16:24:39Z  core  oversight.approved    ref=REQ001
+```
+
+Every row is SHA-256 hash-chained to the previous. The chain verifies with `civiclaw audit verify`. Edit or delete any entry and the verification fails at the tampered row — that's the primitive EU AI Act Article 12 wants and nobody else ships.
+
 ## Architecture
 
 ```
@@ -67,13 +80,22 @@ git clone <repo>
 cd civiclaw
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-export ANTHROPIC_API_KEY="sk-ant-..."
+export ANTHROPIC_API_KEY="sk-ant-..."   # or OPENAI_API_KEY, or run Ollama locally
+export CIVICLAW_ACTOR="your.name@council.gov.uk"
 
-# Run the DSAR skill
-python3 skills/dsar/skill.py intake skills/dsar/sample_request.txt
+# Top-level CLI
+./civiclaw list
+./civiclaw model                                                    # which backend will be used
+./civiclaw dsar intake skills/dsar/samples/sample_request.txt
+./civiclaw dsar search "James Wilson"
+./civiclaw dsar redact skills/dsar/samples/sample_document.txt --subject "James Wilson" --requester "Sarah Wilson"
+./civiclaw dsar respond --request-id REQ001
+./civiclaw approve --ref REQ001 --note "Reviewed, cleared for disclosure."
+./civiclaw audit verify
+./civiclaw audit tail 10
 ```
 
-See [`skills/dsar/SKILL.md`](./skills/dsar/SKILL.md) for the full DSAR walkthrough.
+See [`skills/dsar/SKILL.md`](./skills/dsar/SKILL.md) for the full DSAR walkthrough, [`ui/`](./ui/) for the admin UI, and [`docs/architecture.md`](./docs/architecture.md) for the design brief.
 
 ## Why open source
 
