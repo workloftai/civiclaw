@@ -22,25 +22,38 @@ If you work in Local Authority IT, Information Governance, or procurement — I 
 
 ## Hacker News (Show HN)
 
-**Show HN: civiclaw — open-source audit-native agent runtime for UK public sector**
+**Title (paste into HN's "Title" field):**
 
-I've been building an agent runtime specifically for UK Local Authorities and NHS Trusts. First skill is a UK GDPR Subject Access Request handler that walks the full lifecycle (intake → source discovery → third-party redaction → compliant response draft) and logs every step to a cryptographic append-only audit log that verifies tamper-evident.
+`Show HN: Civiclaw – Open-source audit-native agent runtime for UK public sector`
 
-Design constraints:
+**URL (paste into HN's "URL" field):**
+
+`https://gitlab.com/Alfpl/civiclaw`
+
+**Text body (post as the first comment on your own submission, immediately after submitting):**
+
+I've been building an agent runtime specifically for UK Local Authorities and NHS Trusts. The thesis: US SaaS incumbents (OneTrust, Vanta, DataGrail) don't chase £10k-£30k council budgets, so UK public sector ends up duct-taping Excel + Outlook + Word to meet binding statutory obligations. The EU AI Act high-risk obligations kick in 2 August 2026. There's a real gap.
+
+What ships in v0.1 (today):
+
+- **DSAR skill** — UK GDPR Article 15. Intake, source discovery, third-party redaction with pre/post hash proof, compliant response draft.
+- **FOI skill** — FOIA 2000. Qualification, s.12 £450 / 18-hour cost-limit check, department search plan, response with exemption rationale.
+- **EIR skill** — Environmental Information Regulations 2004. Reg 12 / Reg 13 exception analysis with the mandatory public-interest test (and the Reg 12(2) presumption in favour of disclosure), Reg 7 extension awareness.
+- **AIact skill** — EU AI Act risk classification, Annex IV technical documentation generator, and Article 27 Fundamental Rights Impact Assessment for public-authority deployers.
+
+Design constraints I've stuck to:
+
 - Every skill declares its regulatory mappings in YAML frontmatter (UK GDPR article, EU AI Act article, ICO code of practice). Skills that don't declare mappings don't load.
-- The audit log is a primitive, not an option. Append-only, hash-chained, no delete path. Designed to produce EU AI Act Article 12 evidence.
-- Human-in-the-loop is structural. Any stage marked `human_in_the_loop` blocks on an approval audit event.
+- The audit log is a primitive, not an option. Append-only, SHA-256 hash-chained, no delete path. `civiclaw audit verify` walks the chain; tamper one byte and it tells you which row broke. Designed to satisfy EU AI Act Article 12 (the 6-month logging requirement).
+- Human-in-the-loop is structural. Any stage marked `human_in_the_loop` blocks on an approval audit event before the output leaves the agent. Article 14 enforced, not optional.
 - Model-agnostic. Claude is the dev default; Ollama/Qwen is the sovereign fallback so a council can run it with zero US-lab dependency.
+- Skills ship in two paths simultaneously: `skills/<name>/` for the civiclaw runtime, and `.claude/skills/<name>/` for VS Code 1.109+, GitHub Copilot CLI, and Claude Code. Same skill, three IDEs, one audit chain.
 
-The motivation: US SaaS incumbents (OneTrust, Vanta, DataGrail) don't chase £10k-£30k council budgets. UK public sector has been duct-taping Excel + Outlook + Word macros to meet legal obligations. EU AI Act Annex III kicks in August 2026. There's a gap big enough to walk through.
+Quickstart on a fresh clone takes about 5 minutes — there's a working sample DSAR + FOI + EIR + AI-Act run in the README's quickstart.
 
-Apache 2.0. Single-developer built, AI-augmented (I document that honestly in CONTRIBUTING).
+Apache 2.0. Single-developer built, AI-augmented (CONTRIBUTING.md is honest about that).
 
-Repo → [link]
-Architecture → [link to docs/architecture.md]
-Compliance mapping → [link to docs/compliance-mapping.md]
-
-Feedback especially welcome from: public-sector IT, information-governance practitioners, and anyone who has actually shipped an EU AI Act conformity assessment.
+Looking for: feedback from public-sector IT, information-governance practitioners, and anyone who's actually shipped an EU AI Act conformity assessment. What's missing? What would you ship as the next skill?
 
 ---
 
