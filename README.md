@@ -80,7 +80,7 @@ civiclaw/
 ## Quickstart
 
 ```bash
-git clone <repo>
+git clone https://gitlab.com/Alfpl/civiclaw.git
 cd civiclaw
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
