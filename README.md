@@ -51,6 +51,16 @@ Here's the tail from real DSAR and FOI round-trips run against the sample data �
 
 Every row is SHA-256 hash-chained to the previous. The chain verifies with `civiclaw audit verify`. Edit or delete any entry and the verification fails at the tampered row — that's the primitive EU AI Act Article 12 wants and nobody else ships.
 
+## Civiclaw uniquely produces real regulatory training data
+
+Most agentic-AI products have to *construct* synthetic training data to improve their models. Civiclaw does not.
+
+Every DSAR, FOI, EIR, and AI-Act case civiclaw runs ships a labelled trajectory: the regulatory mapping declared in the skill's YAML frontmatter, the agent's reasoning at each stage, the human officer's sign-off (or rejection) decision under Article 14, and the outcome. That is a supervised-learning dataset of real council-grade compliance ground truth, generated automatically as a by-product of normal use.
+
+Each civiclaw skill ships a **quarterly model card**: accuracy on real (de-identified) cases, regression versus the previous prompt revision, distribution of human-override reasons. Run with DSPy / GEPA optimisation against the same audit-log-as-corpus and the skill prompts compile into something demonstrably better than a hand-written instruction.
+
+Other vendors in this space cannot make this claim. They do not have the audit primitive — so they cannot have the corpus.
+
 ## Architecture
 
 ```
