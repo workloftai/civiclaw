@@ -1,0 +1,75 @@
+AI SYSTEM DESCRIPTION — Council DSAR Triage Assistant
+=====================================================
+
+Deployer: Sample Borough Council, UK
+System name: SAR-Triage-AI
+Status: Pre-deployment, planned go-live Q3 2026
+Owner: Head of Information Governance
+
+PURPOSE
+-------
+
+Sample Borough Council receives approximately 1,400 Subject Access Requests per year under UK GDPR Article 15. Average staff time to triage and respond is 22 hours per request. The Council is piloting an AI assistant ("SAR-Triage-AI") to automate the intake, search planning, and first-draft response stages.
+
+The AI:
+- Reads incoming DSAR text from a public mailbox + online portal
+- Extracts the requester name, data subject name, scope, and relationship between the two
+- Plans which Council systems likely hold relevant records (children's social care, education, housing, parking, council tax, etc.)
+- Drafts a UK GDPR-compliant response letter with redaction recommendations
+
+The AI does NOT:
+- Send the response — every draft pauses for an Information Governance officer to approve, edit, and send.
+- Make any decision that finalises a citizen's request without human review.
+- Operate on data outside the Council's tenanted environment.
+
+DATA INPUTS
+-----------
+
+- Inbound DSAR text (email body, attached PDF, or web-form free text)
+- Requester identity documents (where supplied) — used only for confirmation, never stored beyond verification
+- Council systems metadata (anonymised — list of systems and their data categories, not the data itself)
+- The IG officer's edits — captured to fine-tune the response template
+
+DATA OUTPUTS
+------------
+
+- Structured intake JSON (requester, subject, scope, urgency flags)
+- Search plan with ranked Council systems and estimated effort
+- First-draft response letter (Markdown)
+- Audit log entries for every stage
+
+USERS
+-----
+
+- Information Governance officers (3 named users)
+- Records management team (2 named users)
+- Read-only oversight: the Council's Data Protection Officer, the Council's SIRO
+
+DEPLOYMENT
+----------
+
+- On-premise install on Council infrastructure (no SaaS dependency)
+- Model backend: vendor-agnostic; Council intends to use Anthropic Claude during build, with Ollama+Qwen as a sovereignty fallback
+- Audit logs: cryptographic append-only chain, hash-verified daily
+- Retention: 6 months for live audit, 7 years for archived audit (matches the Council's records-management policy for IG decisions)
+
+POPULATIONS AFFECTED
+--------------------
+
+- Citizens who submit DSARs (~1,400/year) — including children whose parents request data on their behalf
+- Council staff whose decisions or correspondence are referenced in the disclosed records
+- Third parties named in the records (subject to redaction)
+
+KNOWN RISKS
+-----------
+
+- A misclassified scope could lead to incomplete disclosure (citizen receives less than they're entitled to) — mitigation: human review before send.
+- A redaction miss could expose third-party PII — mitigation: redaction stage runs structured prompt + human review; council-side QA on first 50 outputs.
+- Bias in the search plan could deprioritise certain data sources — mitigation: deterministic source list, ranked by AI but not removed from consideration.
+
+PROCUREMENT NOTES
+-----------------
+
+- Council is procuring civiclaw runtime (Apache 2.0) + Workloft hosted support (£15,000 one-off install + 12-month support).
+- Council will register the system in its public AI register from the deployment date.
+- Council DPO will sign off the FRIA before go-live.
