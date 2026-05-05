@@ -99,6 +99,7 @@ export CIVICLAW_ACTOR="your.name@council.gov.uk"
 ./civiclaw approve --ref REQ001 --note "Reviewed, cleared for disclosure."
 ./civiclaw audit verify
 ./civiclaw audit tail 10
+./civiclaw audit demo-tamper                                        # tampers one entry, shows the verifier catch it, restores
 ```
 
 See [`skills/dsar/SKILL.md`](./skills/dsar/SKILL.md) for the full DSAR walkthrough, [`ui/`](./ui/) for the admin UI, and [`docs/architecture.md`](./docs/architecture.md) for the design brief.

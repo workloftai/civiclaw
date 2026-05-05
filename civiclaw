@@ -41,16 +41,33 @@ def cmd_list() -> int:
     return 0
 
 
+def _color_supported() -> bool:
+    """Tiny ANSI guard: colour the demo only when stdout looks like a real terminal."""
+    return sys.stdout.isatty() and os.environ.get("NO_COLOR") is None
+
+
+def _c(text: str, code: str) -> str:
+    if not _color_supported():
+        return text
+    return f"\033[{code}m{text}\033[0m"
+
+
 def cmd_audit(rest: list[str]) -> int:
     log = AuditLog(AUDIT_PATH)
     if not rest or rest[0] == "verify":
+        import time as _time
+        t0 = _time.monotonic()
         ok, n, err = log.verify()
+        elapsed_ms = (_time.monotonic() - t0) * 1000
         print(f"audit log: {AUDIT_PATH}")
-        print(f"entries: {n}")
-        print(f"verified: {ok}")
-        if err:
-            print(f"error: {err}")
-        return 0 if ok else 1
+        print(f"entries:   {n}")
+        print(f"elapsed:   {elapsed_ms:.1f} ms")
+        if ok:
+            print(_c("verified:  ✓ chain intact", "32;1"))
+            return 0
+        print(_c("verified:  ✗ CHAIN BROKEN", "31;1"))
+        print(_c(f"error:     {err}", "31"))
+        return 1
     if rest[0] == "tail":
         n = int(rest[1]) if len(rest) > 1 else 10
         if not AUDIT_PATH.exists():
@@ -64,8 +81,124 @@ def cmd_audit(rest: list[str]) -> int:
             except Exception:
                 print(line)
         return 0
+    if rest[0] == "demo-tamper":
+        return _audit_demo_tamper()
     print(f"Unknown audit subcommand: {rest[0]}", file=sys.stderr)
     return 2
+
+
+def _audit_demo_tamper() -> int:
+    """Show what happens when an audit-log entry is tampered with.
+
+    Backs up the live audit log, edits a single byte inside one entry's data
+    field, runs the verifier (which will fail and point to the tampered row),
+    and then restores from backup. Designed for HN / demo videos.
+
+    Never exits with the tampered file in place — even on Ctrl-C.
+    """
+    import time as _time
+
+    if not AUDIT_PATH.exists() or AUDIT_PATH.stat().st_size == 0:
+        print("(audit log is empty — run a skill first, e.g. `civiclaw dsar intake samples/sample_request.txt`)")
+        return 1
+
+    log = AuditLog(AUDIT_PATH)
+    backup_path = AUDIT_PATH.with_suffix(".jsonl.demo-backup")
+
+    # Snapshot first.
+    backup_path.write_bytes(AUDIT_PATH.read_bytes())
+
+    try:
+        rule = "─" * 68
+        print(rule)
+        print(_c("  AUDIT-CHAIN TAMPER DEMO", "1;36"))
+        print(rule)
+
+        # 1. Show the current verified state.
+        print(_c("\n[step 1] Verify the chain BEFORE tampering:\n", "1"))
+        t0 = _time.monotonic()
+        ok, n, err = log.verify()
+        elapsed_ms = (_time.monotonic() - t0) * 1000
+        print(f"   entries: {n}    elapsed: {elapsed_ms:.1f} ms")
+        if ok:
+            print("   " + _c("✓ chain intact", "32;1"))
+        else:
+            print("   " + _c(f"✗ chain ALREADY broken: {err}", "31;1"))
+            print("   (aborting — fix the existing break first)")
+            return 1
+
+        # 2. Pick a target entry near the middle for visual punch.
+        lines = AUDIT_PATH.read_text(encoding="utf-8").splitlines()
+        if len(lines) < 2:
+            print(_c("\n   need at least 2 entries for the demo. Aborting.", "33"))
+            return 1
+        target_idx = max(0, len(lines) // 2 - 1)
+        target_line = lines[target_idx]
+        try:
+            target_entry = json.loads(target_line)
+        except Exception:
+            target_idx = 0
+            target_entry = json.loads(lines[0])
+
+        ref = target_entry.get("ref", "?")
+        skill = target_entry.get("skill", "?")
+        event = target_entry.get("event", "?")
+        print(_c(f"\n[step 2] Tampering with entry #{target_idx + 1}:", "1"))
+        print(f"   ts:    {target_entry.get('ts')}")
+        print(f"   skill: {skill}")
+        print(f"   event: {event}")
+        print(f"   ref:   {ref}")
+        print("   change: appending one character to the `data` field.")
+        if "data" not in target_entry or not isinstance(target_entry["data"], dict):
+            target_entry["data"] = {"_demo": "tampered"}
+        else:
+            # Mutate in a way that's visible but doesn't break JSON.
+            tampered_data = dict(target_entry["data"])
+            tampered_data["_tampered_with"] = "X"
+            target_entry["data"] = tampered_data
+
+        # CRITICAL: do NOT recompute the hash. The whole point is that the
+        # stored hash no longer matches the (now-different) payload.
+        lines[target_idx] = json.dumps(target_entry, sort_keys=False, separators=(",", ":"))
+        AUDIT_PATH.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        # 3. Verify again — the chain should now break exactly at target_idx + 1.
+        print(_c("\n[step 3] Re-verify the tampered chain:\n", "1"))
+        t0 = _time.monotonic()
+        ok, n_after, err = log.verify()
+        elapsed_ms = (_time.monotonic() - t0) * 1000
+        print(f"   entries scanned before break: {n_after}    elapsed: {elapsed_ms:.1f} ms")
+        if ok:
+            print("   " + _c("UNEXPECTED: chain still verifies. The tamper didn't affect the hash inputs.", "33;1"))
+        else:
+            print("   " + _c(f"✗ {err}", "31;1"))
+            print("   ↳ civiclaw rejected the tampered log without needing a database, an oracle, or a vendor.")
+
+        # 4. Restore.
+        print(_c("\n[step 4] Restoring the original audit log from backup…", "1"))
+        AUDIT_PATH.write_bytes(backup_path.read_bytes())
+        ok2, n2, err2 = log.verify()
+        if ok2:
+            print(f"   ✓ restored. {n2} entries verified.")
+        else:
+            print(_c(f"   ✗ RESTORE FAILED: {err2}. Backup is at {backup_path}", "31;1"))
+            return 2
+
+        print()
+        print(rule)
+        print(_c("  Demo complete. Chain integrity is a primitive, not a feature toggle.", "36"))
+        print(rule)
+        return 0
+    finally:
+        # Belt-and-braces: even on KeyboardInterrupt, restore from backup.
+        try:
+            if backup_path.exists():
+                # Only restore if the live file differs from the backup.
+                if AUDIT_PATH.read_bytes() != backup_path.read_bytes():
+                    AUDIT_PATH.write_bytes(backup_path.read_bytes())
+                backup_path.unlink()
+        except Exception:
+            pass
 
 
 def cmd_approve(rest: list[str]) -> int:
