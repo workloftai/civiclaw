@@ -31,6 +31,7 @@ A skill-based agent runtime, MIT-friendly (Apache 2.0), designed to:
 |---|---|---|
 | [`dsar`](./skills/dsar/)   | v0.1 working | Intake, search, redact, and respond to UK GDPR Article 15 requests |
 | [`foi`](./skills/foi/)     | v0.1 working | Intake, s.12 fee check, search, and respond under FOIA 2000 |
+| [`eir`](./skills/eir/)     | v0.1 working | Intake, Reg 12 / Reg 13 exception check, search, and respond under the Environmental Information Regulations 2004 |
 | [`aiact`](./skills/aiact/) | v0.1 working | EU AI Act risk classification, **Annex IV** technical documentation, and Article 27 **Fundamental Rights Impact Assessment** for UK public-sector deployers |
 
 ## What a real audit trail looks like

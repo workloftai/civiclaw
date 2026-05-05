@@ -1,0 +1,29 @@
+From: chair@camdenairaction.example
+To: foi@[council].gov.uk
+Date: 8 April 2026
+Subject: EIR request — roadside NO2 monitoring near schools, 1 Apr 2024 to 31 Mar 2026
+
+Dear Information Governance,
+
+Please treat this as a request under the Environmental Information Regulations 2004.
+
+I am writing on behalf of Camden Air Quality Action Group, a residents' campaign concerned with the long-term respiratory health of children attending borough schools.
+
+Please supply the following environmental information for the period **1 April 2024 to 31 March 2026** inclusive:
+
+1. **All roadside diffusion tube readings** for monitoring sites within 250 metres of any primary or secondary school in the borough (state-funded or independent), including the site name, grid reference, sample period, raw and bias-corrected NO2 concentrations, and any quality-assurance flags.
+
+2. **Outputs from any automatic / continuous monitoring stations** within the same 250-metre radius, in the council's standard hourly format (CSV preferred).
+
+3. **Modelled annual mean NO2 concentrations** for each of the school catchment areas the council uses for air-quality modelling, including the model used, base year, projection year, and emission inputs.
+
+4. **Copies of any internal correspondence** (emails, briefing notes, meeting minutes, draft reports) between the Environmental Health team and the Director of Public Health, the relevant Cabinet Member, and the Council's Chief Executive, that discuss exceedances of the **EU annual mean NO2 objective (40 µg/m3)** at any of the sites covered by parts 1–3 in the same period.
+
+Please supply the data in machine-readable form (CSV / Excel) where possible, and the correspondence as PDFs or in the form held.
+
+Please confirm receipt and indicate the proposed response date. If any of the information is being withheld, please state the regulation relied upon (with full citation), the public-interest test reasoning, and our right of internal review and onward complaint to the Information Commissioner.
+
+Yours faithfully,
+Dr Hannah Reilly
+Chair, Camden Air Quality Action Group
+camdenairaction.example
