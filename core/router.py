@@ -32,7 +32,7 @@ DEFAULT_MODELS = {
     },
     "openai": {"cheap": "gpt-4o-mini", "mid": "gpt-4o", "frontier": "gpt-5"},
     "gemini": {"cheap": "gemini-flash-3.1", "mid": "gemini-pro-3.1", "frontier": "gemini-ultra"},
-    "ollama": {"cheap": "qwen3-7b-instruct", "mid": "qwen3-35b-a3b", "frontier": "qwen3-72b"},
+    "ollama": {"cheap": "qwen2.5:3b", "mid": "qwen2.5:7b-instruct-q4_K_M", "frontier": "qwen2:72b"},
 }
 
 PREFERENCE_ORDER = ["anthropic", "openai", "gemini", "ollama"]
@@ -186,6 +186,11 @@ def chat(system: str, user: str, *, model_tier: str = "mid", max_tokens: int = 2
     model = DEFAULT_MODELS[backend][model_tier]
     text = CHAT_IMPLS[backend](system, user, model, max_tokens)
     return ModelResponse(text=text, backend=backend, model=model)
+
+
+def chat_text(system: str, user: str, *, model_tier: str = "mid", max_tokens: int = 2048) -> str:
+    """Plain-text convenience wrapper used by skills that don't need backend metadata."""
+    return chat(system, user, model_tier=model_tier, max_tokens=max_tokens).text
 
 
 if __name__ == "__main__":

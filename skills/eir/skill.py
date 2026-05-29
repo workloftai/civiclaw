@@ -51,19 +51,26 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
+def _have_anthropic() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 def _client() -> anthropic.Anthropic:
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
+    if not _have_anthropic():
         sys.exit("ERROR: ANTHROPIC_API_KEY not set.")
-    return anthropic.Anthropic(api_key=key)
+    return anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 
 def _call(system: str, user: str) -> str:
-    resp = _client().messages.create(
-        model=MODEL, max_tokens=MAX_TOKENS, system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    return resp.content[0].text  # type: ignore[attr-defined]
+    """Plain-text LLM call. Falls back to the sovereign router (Ollama/Qwen) when no Anthropic key is set."""
+    if _have_anthropic() and os.environ.get("CIVICLAW_MODEL") != "ollama":
+        resp = _client().messages.create(
+            model=MODEL, max_tokens=MAX_TOKENS, system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        return resp.content[0].text  # type: ignore[attr-defined]
+    from core.router import chat_text
+    return chat_text(system, user, model_tier="mid", max_tokens=MAX_TOKENS)
 
 
 def _print_section(title: str, body: str) -> None:

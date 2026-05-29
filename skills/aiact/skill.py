@@ -62,24 +62,39 @@ def _read_text(text_or_path: str) -> str:
     return text_or_path
 
 
+def _have_anthropic() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 def _client() -> anthropic.Anthropic:
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
+    if not _have_anthropic():
         print("ERROR: ANTHROPIC_API_KEY environment variable is not set.", file=sys.stderr)
         sys.exit(1)
-    return anthropic.Anthropic(api_key=key)
+    return anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 
 def _instructor_client():
+    """Structured outputs depend on Anthropic tool-use; sovereign-mode not wired here yet."""
+    if not _have_anthropic():
+        print(
+            "ERROR: structured-output stages (intake / classify) currently require ANTHROPIC_API_KEY.\n"
+            "Sovereign-mode (Ollama) supports plain-text Annex-IV and FRIA generators only.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     return instructor.from_anthropic(_client())
 
 
 def _call(system: str, user: str) -> str:
-    resp = _client().messages.create(
-        model=MODEL, max_tokens=MAX_TOKENS, system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    return resp.content[0].text
+    """Plain-text LLM call. Falls back to the sovereign router (Ollama/Qwen) when no Anthropic key is set."""
+    if _have_anthropic() and os.environ.get("CIVICLAW_MODEL") != "ollama":
+        resp = _client().messages.create(
+            model=MODEL, max_tokens=MAX_TOKENS, system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        return resp.content[0].text
+    from core.router import chat_text
+    return chat_text(system, user, model_tier="mid", max_tokens=MAX_TOKENS)
 
 
 def _call_structured(system: str, user: str, response_model):

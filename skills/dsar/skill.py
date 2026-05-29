@@ -93,30 +93,51 @@ class SearchResult(BaseModel):
 # Helpers
 # ---------------------------------------------------------------------------
 
+def _have_anthropic() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 def _client() -> anthropic.Anthropic:
     """Return an Anthropic client, failing fast if the key is missing."""
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
+    if not _have_anthropic():
         print("ERROR: ANTHROPIC_API_KEY environment variable is not set.", file=sys.stderr)
         sys.exit(1)
-    return anthropic.Anthropic(api_key=key)
+    return anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 
 def _instructor_client():
-    """Return an Instructor-wrapped client for structured outputs."""
+    """Return an Instructor-wrapped client for structured outputs.
+
+    Structured outputs depend on Anthropic's tool-use schema; sovereign-mode (Ollama)
+    is not wired here yet. Plain-text `_call()` does fall back to the router.
+    """
+    if not _have_anthropic():
+        print(
+            "ERROR: structured-output stages (e.g. dsar intake) currently require ANTHROPIC_API_KEY.\n"
+            "Sovereign-mode (Ollama) supports plain-text stages only — see core/router.py.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
     return instructor.from_anthropic(_client())
 
 
 def _call(system: str, user: str) -> str:
-    """Send a single-turn message to Claude and return the text response."""
-    client = _client()
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=MAX_TOKENS,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    return response.content[0].text
+    """Send a single-turn message and return the text response.
+
+    Falls back to the sovereign router (Ollama/Qwen) when no Anthropic key is set,
+    so plain-text DSAR stages (search/redact/respond) run end-to-end on-prem.
+    """
+    if _have_anthropic() and os.environ.get("CIVICLAW_MODEL") != "ollama":
+        client = _client()
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=MAX_TOKENS,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        return response.content[0].text
+    from core.router import chat_text
+    return chat_text(system, user, model_tier="mid", max_tokens=MAX_TOKENS)
 
 
 def _call_structured(system: str, user: str, response_model):

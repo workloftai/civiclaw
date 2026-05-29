@@ -89,4 +89,4 @@ civiclaw aiact fria --request-id AIACT-001
 
 ## Dependencies
 
-- Same as `dsar` and `foi`: Anthropic SDK, `instructor`, `pydantic`. Falls back to OpenAI / Ollama via the model router if `ANTHROPIC_API_KEY` isn't set.
+- Anthropic SDK, `instructor`, `pydantic`. Plain-text stages (`annex-iv`, `fria`) fall back to the sovereign router (Ollama/Qwen) when `ANTHROPIC_API_KEY` is unset — see `core/router.py`. Structured-output stages (`intake`, `classify`) currently still require Anthropic; Ollama tool-use wiring is queued.
