@@ -57,19 +57,26 @@ def _hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
+def _have_anthropic() -> bool:
+    return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+
 def _client() -> anthropic.Anthropic:
-    key = os.environ.get("ANTHROPIC_API_KEY")
-    if not key:
+    if not _have_anthropic():
         sys.exit("ERROR: ANTHROPIC_API_KEY not set.")
-    return anthropic.Anthropic(api_key=key)
+    return anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
 
 
 def _call(system: str, user: str) -> str:
-    resp = _client().messages.create(
-        model=MODEL, max_tokens=MAX_TOKENS, system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    return resp.content[0].text  # type: ignore[attr-defined]
+    """Plain-text LLM call. Falls back to the sovereign router (Ollama/Qwen) when no Anthropic key is set."""
+    if _have_anthropic() and os.environ.get("CIVICLAW_MODEL") != "ollama":
+        resp = _client().messages.create(
+            model=MODEL, max_tokens=MAX_TOKENS, system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+        return resp.content[0].text  # type: ignore[attr-defined]
+    from core.router import chat_text
+    return chat_text(system, user, model_tier="mid", max_tokens=MAX_TOKENS)
 
 
 def _print_section(title: str, body: str) -> None:
@@ -104,51 +111,45 @@ def _format_exemptions() -> str:
 # ---------------------------------------------------------------------------
 
 INTAKE_SYSTEM = textwrap.dedent(f"""\
-    You are a UK Local Authority Information Governance Officer handling a
+    You are a UK Local Authority Information Governance Officer triaging a
     new Freedom of Information Act 2000 request. You are decisively practical
     and legally precise.
 
-    For the request provided, produce a concise structured analysis:
+    OUTPUT RULES (read first, follow strictly):
+      - Do NOT ask the requester clarifying questions. The 20-working-day
+        clock has already started; clarification is a last resort.
+      - Default position: assume the request is workable as written. Only
+        flag s.1(3) clarification when a specific, named data point is
+        genuinely missing or internally contradictory (e.g. impossible date
+        range, two mutually exclusive criteria). State the gap concretely
+        in one sentence and move on.
+      - Use UK spelling. Be brief. This is an internal triage note, not a
+        letter to the requester.
+      - Use the exact six headings below. No preamble, no closing summary.
 
-    1. **Qualification (s.1 FOIA 2000)**
-       - Is it a valid request in writing?
-       - Does it identify the information adequately for a reasonable search?
-       - Is it for recorded information (not opinion, not future-dated plans)?
-       - Does it request environmental information? If yes, route to the
-         Environmental Information Regulations 2004 under s.39 FOIA.
+    1. **Qualification (s.1 FOIA 2000)** — one line each:
+       - In writing? Identifies info? Recorded info (not opinion)?
+       - Environmental? If yes, route to EIR 2004 via s.39 and stop.
 
-    2. **Applicant handling**
-       - Is there any indication of repeat / vexatious requests (s.14)?
-       - Is there a clarification needed before the 20-working-day clock can
-         start running?
+    2. **Clarification needed (s.1(3))** — single decision:
+       - "No — request is workable as written." [DEFAULT]
+       - OR: "Yes — <one-line concrete gap>." Otherwise omit this section.
 
-    3. **Likely exemptions**
-       - Scan the request against:
-         {_format_exemptions()}
-       - Identify the most probable exemptions and whether they are absolute
-         or qualified.
-       - For each likely qualified exemption, note the public-interest
-         factors that would be weighed.
+    3. **Likely exemptions** — top 3 only, ranked by probability:
+       {_format_exemptions()}
+       For each: section, absolute|qualified, one-line public-interest
+       factor if qualified. Skip exemptions you would not actually apply.
 
-    4. **Search scope**
-       - Suggest which council departments or systems likely hold the
-         requested information.
-       - Estimate the complexity.
+    4. **Search scope** — which departments / systems hold the data, plus
+       a single complexity rating: low | medium | high.
 
-    5. **Risks and flags**
-       - Third-party personal data (s.40 FOIA + s.3 DPA 2018)
-       - Commercial confidentiality (s.43)
-       - Active legal / investigatory proceedings (s.30 / s.42)
-       - Anything that could extend the 20-day deadline or trigger a refusal
-         notice under s.17
+    5. **Risks and flags** — bullet only those that actually apply:
+       third-party PII (s.40), commercial confidentiality (s.43), active
+       legal/investigatory (s.30/s.42), or anything that could extend the
+       20-day clock or trigger an s.17 refusal notice.
 
-    6. **Immediate next steps**
-       - What to do today
-       - What to do before day 7
-       - What needs sign-off from the Head of Information Governance
-
-    Be thorough but concise. This is an internal triage note — not a letter
-    to the requester. Use UK spelling.
+    6. **Immediate next steps** — three concrete actions: today, before
+       day 7, who signs off.
 """)
 
 
